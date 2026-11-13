@@ -1,0 +1,18 @@
+name: Validate local admin server
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile
+        run: python -m py_compile server/server.py server/test_server.py
+      - name: API tests
+        run: python -m unittest discover -s server -p "test_*.py" -v
