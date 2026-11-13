@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>إدارة شبكة الكامل</title>
+<style>
+:root{font-family:Tahoma,Arial,sans-serif;color:#172033;background:#f3f6fb}*{box-sizing:border-box}body{margin:0}.top{background:#101c36;color:white;padding:18px 5%;display:flex;justify-content:space-between;align-items:center}.top h1{font-size:21px;margin:0}.wrap{max-width:1150px;margin:24px auto;padding:0 16px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}.card{background:white;border:1px solid #e4e9f2;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 3px 14px #15264a0a}.stat{font-size:30px;font-weight:bold;color:#1458a6}.muted{color:#68758b;font-size:13px}h2{font-size:18px;margin:0 0 14px}label{display:block;font-size:13px;margin:10px 0 5px}input,textarea,select{width:100%;padding:11px;border:1px solid #d5ddea;border-radius:9px;font:inherit}textarea{min-height:85px;resize:vertical}button{border:0;border-radius:9px;padding:10px 16px;background:#1458a6;color:white;font:inherit;cursor:pointer;margin-top:10px}button.alt{background:#e9eff8;color:#19385f}button.danger{background:#a83232}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.item{display:flex;justify-content:space-between;gap:12px;align-items:center;border-top:1px solid #edf0f5;padding:12px 0}.hidden{display:none}.pill{font-size:12px;padding:4px 8px;border-radius:20px;background:#e7f5ed;color:#17643b}.pill.off{background:#fcebea;color:#9c2929}.login{max-width:420px;margin:8vh auto}.msg{padding:10px;background:#fff6dd;border-radius:9px;margin:12px 0;white-space:pre-wrap}small{color:#65738a}@media(max-width:600px){.row{grid-template-columns:1fr}.top{padding:15px}.top h1{font-size:18px}}
+</style></head>
+<body>
+<header class="top"><h1>⚙ إدارة شبكة الكامل</h1><span id="connection">غير متصل</span></header>
+<main class="wrap">
+<section id="login" class="card login"><h2>دخول المدير</h2><p class="muted">لوحة الإدارة المحلية – شبكة الكامل</p><label>كلمة المرور</label><input id="password" type="password" autocomplete="current-password"><button onclick="login()">دخول</button><div id="loginError" class="msg hidden"></div></section>
+<section id="app" class="hidden">
+<div class="grid">
+<div class="card"><div class="muted">إجمالي الأقسام</div><div id="sTotal" class="stat">0</div></div>
+<div class="card"><div class="muted">الأقسام الظاهرة</div><div id="sVisible" class="stat">0</div></div>
+<div class="card"><div class="muted">الرسائل المنشورة</div><div id="mTotal" class="stat">0</div></div>
+<div class="card"><div class="muted">الأجهزة النشطة آخر 90 ثانية</div><div id="dTotal" class="stat">0</div></div>
+</div>
+<div class="card"><h2>إضافة قسم جديد</h2><div class="row"><div><label>اسم القسم</label><input id="sectionTitle" placeholder="مثال: العروض"></div><div><label>الأيقونة (اسم أو رمز)</label><input id="sectionIcon" value="grid"></div></div><label>الوصف</label><input id="sectionDesc" placeholder="وصف مختصر للقسم"><label>معرّف الوجهة داخل تطبيق المشتركين (اختياري)</label><input id="sectionTarget" placeholder="offers"><button onclick="addSection()">إضافة القسم</button></div>
+<div class="card"><h2>الأقسام الحالية</h2><div id="sections"></div></div>
+<div class="card"><h2>إرسال رسالة وإشعار</h2><label>عنوان الرسالة</label><input id="messageTitle" placeholder="تنبيه مهم"><label>نص الرسالة</label><textarea id="messageBody" placeholder="اكتب الرسالة للمشتركين..."></textarea><label>المستلمون</label><select id="audience"><option value="all">جميع الأجهزة المسجلة</option><option value="device">جهاز محدد بالمعرّف</option></select><div id="deviceWrap" class="hidden"><label>معرّف الجهاز</label><input id="deviceId"></div><button onclick="sendMessage()">إرسال الرسالة</button><div id="feedback" class="msg hidden"></div></div>
+<div class="card"><h2>آخر الرسائل</h2><div id="messages"></div></div>
+<div class="card"><h2>آخر العمليات الإدارية</h2><div id="audit"></div></div>
+</section></main>
+<script>
+let token=localStorage.getItem("alkamel_admin_token")||"";
+const $=id=>document.getElementById(id);
+$("audience").addEventListener("change",()=>$("deviceWrap").classList.toggle("hidden",$("audience").value!=="device"));
+async function api(path,opts={}){let r=await fetch("/api"+path,{...opts,headers:{"Content-Type":"application/json","Authorization":"Bearer "+token,...(opts.headers||{})}});let d=await r.json();if(r.status===401){logout();throw Error(d.error||"انتهت الجلسة")}if(!r.ok)throw Error(d.error||"حدث خطأ");return d}
+function note(id,msg){$(id).textContent=msg;$(id).classList.remove("hidden")}
+async function login(){try{let r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:$("password").value})});let d=await r.json();if(!r.ok)throw Error(d.error);token=d.token;localStorage.setItem("alkamel_admin_token",token);$("login").classList.add("hidden");$("app").classList.remove("hidden");$("connection").textContent="متصل بالخادم";await refresh()}catch(e){note("loginError",e.message)}}
+function logout(){token="";localStorage.removeItem("alkamel_admin_token");$("app").classList.add("hidden");$("login").classList.remove("hidden");$("connection").textContent="غير متصل"}
+async function refresh(){try{let [s,m,a,st]=await Promise.all([api("/sections"),api("/messages"),api("/audit"),api("/stats")]);$("sTotal").textContent=st.sections;$("sVisible").textContent=st.visible_sections;$("mTotal").textContent=st.messages;$("dTotal").textContent=st.online_devices;
+$("sections").innerHTML=s.sections.map(x=>'<div class="item"><div><b>'+esc(x.title)+'</b><div class="muted">'+esc(x.description||"")+'</div><small>معرّف: '+x.id+'</small> <span class="pill '+(x.visible?"":"off")+'">'+(x.visible?"ظاهر":"مخفي")+'</span></div><div><button class="alt" onclick="toggleSection('+x.id+','+(!x.visible)+')">'+(x.visible?"إخفاء":"إظهار")+'</button> <button class="danger" onclick="deleteSection('+x.id+')">حذف</button></div></div>').join("")||"<small>لا توجد أقسام</small>";
+$("messages").innerHTML=m.messages.map(x=>'<div class="item"><div><b>'+esc(x.title)+'</b><div>'+esc(x.body)+'</div><small>'+new Date(x.created_at*1000).toLocaleString("ar")+'</small></div><span class="pill">'+(x.audience==="all"?"للجميع":"محدد")+'</span></div>').join("")||"<small>لا توجد رسائل</small>";
+$("audit").innerHTML=a.events.map(x=>'<div class="item"><div><b>'+esc(x.action)+'</b><div class="muted">'+esc(x.details)+'</div></div><small>'+new Date(x.created_at*1000).toLocaleString("ar")+'</small></div>').join("")||"<small>لا توجد عمليات</small>";
+}catch(e){$("connection").textContent="تعذر الاتصال"}}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function addSection(){try{await api("/sections",{method:"POST",body:JSON.stringify({title:$("sectionTitle").value,description:$("sectionDesc").value,icon:$("sectionIcon").value,target:$("sectionTarget").value,visible:true})});$("sectionTitle").value="";$("sectionDesc").value="";note("feedback","تمت إضافة القسم");await refresh()}catch(e){note("feedback",e.message)}}
+async function toggleSection(id,visible){try{await api("/sections/"+id,{method:"PATCH",body:JSON.stringify({visible})});await refresh()}catch(e){alert(e.message)}}
+async function deleteSection(id){if(!confirm("هل تريد حذف القسم؟"))return;try{await api("/sections/"+id,{method:"DELETE"});await refresh()}catch(e){alert(e.message)}}
+async function sendMessage(){try{let audience=$("audience").value;await api("/messages",{method:"POST",body:JSON.stringify({title:$("messageTitle").value,body:$("messageBody").value,audience,target:$("deviceId").value})});$("messageTitle").value="";$("messageBody").value="";note("feedback","تم حفظ الرسالة في الخادم وستصل للأجهزة عند اتصالها بالخادم");await refresh()}catch(e){note("feedback",e.message)}}
+if(token){$("login").classList.add("hidden");$("app").classList.remove("hidden");refresh()}
+</script></body></html>
